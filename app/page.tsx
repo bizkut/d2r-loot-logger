@@ -154,13 +154,24 @@ export default function Home() {
         setItemDetails(null);
     };
 
-    // Get image URL - try API image first, then base item path
+    // Get image URL - try API image first, then appropriate path based on item type
     const getImageUrl = (itemName: string): string | null => {
         if (itemDetails?.image) {
             return `https://d2io.vercel.app${itemDetails.image}`;
         }
-        // Try base item path (convert "Short Staff" to "short-staff")
+
+        // Convert item name to slug
         const slug = itemName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+        // Check if it's a gem, rune, or misc item (these are in /images/misc/)
+        const miscItems = ['diamond', 'ruby', 'sapphire', 'topaz', 'emerald', 'amethyst', 'skull', 'rune', 'jewel'];
+        const isMiscItem = miscItems.some(misc => slug.includes(misc));
+
+        if (isMiscItem) {
+            return `https://d2io.vercel.app/images/misc/${slug}.png`;
+        }
+
+        // Default to base item path for weapons/armor
         return `https://d2io.vercel.app/images/base/${slug}.png`;
     };
 
