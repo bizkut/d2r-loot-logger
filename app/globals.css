@@ -316,7 +316,7 @@ body {
 
 .item-modal-content {
   background: var(--bg-card);
-  border: 2px solid var(--accent-gold);
+  border: 2px solid #888;
   border-radius: 12px;
   padding: 24px;
   max-width: 450px;
@@ -349,6 +349,11 @@ body {
 .item-modal-content.rune {
   border-color: var(--accent-rune);
   box-shadow: 0 0 20px rgba(255, 136, 0, 0.4);
+}
+
+.item-modal-content.normal {
+  border-color: #888;
+  box-shadow: 0 0 15px rgba(136, 136, 136, 0.3);
 }
 
 .item-modal-header {
