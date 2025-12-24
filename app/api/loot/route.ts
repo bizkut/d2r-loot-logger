@@ -48,6 +48,20 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const sql = getDb();
 
+        // Check for duplicate entry (same timestamp, item_name, character)
+        const existing = await sql`
+            SELECT id FROM loot_logs 
+            WHERE timestamp = ${body.timestamp || ''} 
+            AND item_name = ${body.itemName || 'Unknown Item'}
+            AND character = ${body.character || 'Unknown'}
+            LIMIT 1
+        `;
+
+        if (existing.length > 0) {
+            // Duplicate detected, skip insertion
+            return NextResponse.json({ success: true, duplicate: true }, { status: 200 });
+        }
+
         // Insert into database
         const result = await sql`
       INSERT INTO loot_logs (
