@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { NextRequest, NextResponse } from 'next/server';
+import Pusher from 'pusher';
 
 export interface LootEntry {
     id: string;
@@ -22,6 +23,17 @@ function getDb() {
     return neon(connectionString);
 }
 
+// Initialize Pusher client
+function getPusher() {
+    return new Pusher({
+        appId: process.env.PUSHER_APP_ID || '',
+        key: process.env.PUSHER_KEY || '',
+        secret: process.env.PUSHER_SECRET || '',
+        cluster: process.env.PUSHER_CLUSTER || 'ap1',
+        useTLS: true
+    });
+}
+
 // POST: Receive loot from Koolo webhook
 export async function POST(request: NextRequest) {
     try {
@@ -37,7 +49,7 @@ export async function POST(request: NextRequest) {
         const sql = getDb();
 
         // Insert into database
-        await sql`
+        const result = await sql`
       INSERT INTO loot_logs (
         timestamp, character, item_name, item_id, quality, location, dropped_by, stats
       ) VALUES (
@@ -50,7 +62,30 @@ export async function POST(request: NextRequest) {
         ${body.droppedBy || ''},
         ${JSON.stringify(body.stats || [])}
       )
+      RETURNING id
     `;
+
+        // Prepare loot data for real-time push
+        const lootData = {
+            id: result[0]?.id?.toString() || Date.now().toString(),
+            timestamp: body.timestamp || new Date().toISOString(),
+            character: body.character || 'Unknown',
+            itemName: body.itemName || 'Unknown Item',
+            itemId: body.itemId || '',
+            quality: body.quality || 'normal',
+            location: body.location || 'Unknown',
+            droppedBy: body.droppedBy || '',
+            stats: body.stats || [],
+        };
+
+        // Push to Pusher for real-time updates
+        try {
+            const pusher = getPusher();
+            await pusher.trigger('loot-channel', 'new-loot', lootData);
+        } catch (pusherError) {
+            console.error('Pusher error (non-fatal):', pusherError);
+            // Don't fail the request if Pusher fails
+        }
 
         return NextResponse.json({ success: true }, { status: 201 });
     } catch (error) {

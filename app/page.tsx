@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Pusher from 'pusher-js';
 
 interface LootEntry {
     id: string;
@@ -105,12 +106,35 @@ export default function Home() {
         }
     }, [page, allLogs]);
 
-    // Initial fetch and auto-refresh every 10 seconds
+    // Initial fetch on mount
     useEffect(() => {
         fetchLogs();
-        const interval = setInterval(fetchLogs, 10000);
-        return () => clearInterval(interval);
     }, [fetchLogs]);
+
+    // Pusher real-time subscription
+    useEffect(() => {
+        const pusher = new Pusher('6a19622ee042414f94fa', {
+            cluster: 'ap1'
+        });
+
+        const channel = pusher.subscribe('loot-channel');
+
+        channel.bind('new-loot', (newLoot: LootEntry) => {
+            // Skip excluded items
+            if (isExcludedItem(newLoot.itemName)) return;
+
+            // Add new loot to the top of the list
+            setAllLogs(prev => [newLoot, ...prev]);
+            setDisplayedLogs(prev => [newLoot, ...prev]);
+            setLastUpdate(new Date());
+        });
+
+        return () => {
+            channel.unbind_all();
+            pusher.unsubscribe('loot-channel');
+            pusher.disconnect();
+        };
+    }, []);
 
     // Infinite scroll observer
     useEffect(() => {
