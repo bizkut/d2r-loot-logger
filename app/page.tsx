@@ -131,12 +131,12 @@ export default function Home() {
     }, [hasMore, loading, loadMore]);
 
     // Fetch item details from D2IO when an item is selected
-    const fetchItemDetails = async (itemId: string) => {
-        if (!itemId) return;
+    const fetchItemDetails = async (itemId: string, itemName: string) => {
+        if (!itemId && !itemName) return;
         try {
             const res = await fetch(`https://d2io.vercel.app/api/items`);
             const items: D2Item[] = await res.json();
-            const item = items.find(i => i.id === itemId || i.name.toLowerCase() === itemId.toLowerCase());
+            const item = items.find(i => i.id === itemId || i.name.toLowerCase() === itemId.toLowerCase() || i.name.toLowerCase() === itemName.toLowerCase());
             setItemDetails(item || null);
         } catch (error) {
             console.error('Failed to fetch item details:', error);
@@ -146,12 +146,22 @@ export default function Home() {
 
     const handleItemClick = (entry: LootEntry) => {
         setSelectedItem(entry);
-        fetchItemDetails(entry.itemId || entry.itemName);
+        fetchItemDetails(entry.itemId || entry.itemName, entry.itemName);
     };
 
     const closeModal = () => {
         setSelectedItem(null);
         setItemDetails(null);
+    };
+
+    // Get image URL - try API image first, then base item path
+    const getImageUrl = (itemName: string): string | null => {
+        if (itemDetails?.image) {
+            return `https://d2io.vercel.app${itemDetails.image}`;
+        }
+        // Try base item path (convert "Short Staff" to "short-staff")
+        const slug = itemName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        return `https://d2io.vercel.app/images/base/${slug}.png`;
     };
 
     const formatTime = (timestamp: string) => {
@@ -274,14 +284,15 @@ export default function Home() {
                             <button className="close-btn" onClick={closeModal}>×</button>
                         </div>
 
-                        {itemDetails && itemDetails.image && (
-                            <div className="item-image">
-                                <img
-                                    src={`https://d2io.vercel.app${itemDetails.image}`}
-                                    alt={selectedItem.itemName}
-                                />
-                            </div>
-                        )}
+                        <div className="item-image">
+                            <img
+                                src={getImageUrl(selectedItem.itemName) || ''}
+                                alt={selectedItem.itemName}
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                            />
+                        </div>
 
                         <div className="loot-meta" style={{ marginBottom: '20px' }}>
                             <div className="meta-item">
