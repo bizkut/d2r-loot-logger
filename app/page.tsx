@@ -268,7 +268,7 @@ export default function Home() {
             {/* Item Detail Modal */}
             {selectedItem && (
                 <div className="item-modal" onClick={closeModal}>
-                    <div className="item-modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className={`item-modal-content ${selectedItem.quality}`} onClick={(e) => e.stopPropagation()}>
                         <div className="item-modal-header">
                             <h2 className={`item-name ${selectedItem.quality}`}>{selectedItem.itemName}</h2>
                             <button className="close-btn" onClick={closeModal}>×</button>

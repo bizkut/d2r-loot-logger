@@ -316,13 +316,39 @@ body {
 
 .item-modal-content {
   background: var(--bg-card);
-  border: 1px solid var(--accent-gold);
+  border: 2px solid var(--accent-gold);
   border-radius: 12px;
   padding: 24px;
   max-width: 450px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
+}
+
+/* Quality-specific modal borders */
+.item-modal-content.unique {
+  border-color: var(--accent-unique);
+  box-shadow: 0 0 20px rgba(201, 162, 39, 0.4);
+}
+
+.item-modal-content.set {
+  border-color: var(--accent-set);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.item-modal-content.rare {
+  border-color: var(--accent-rare);
+  box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+}
+
+.item-modal-content.magic {
+  border-color: var(--accent-magic);
+  box-shadow: 0 0 20px rgba(102, 102, 255, 0.3);
+}
+
+.item-modal-content.rune {
+  border-color: var(--accent-rune);
+  box-shadow: 0 0 20px rgba(255, 136, 0, 0.4);
 }
 
 .item-modal-header {
