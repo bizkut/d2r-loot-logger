@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface LootEntry {
     id: string;
@@ -39,24 +39,47 @@ const QUALITY_LABELS: Record<string, string> = {
 
 const CATEGORIES = ['all', 'unique', 'set', 'rare', 'magic', 'rune'];
 
+// Items to exclude (potions, scrolls, gold, etc.)
+const EXCLUDED_ITEMS = [
+    'potion', 'scroll', 'gold', 'key', 'tome', 'arrow', 'bolt', 'javelin',
+    'throwingknife', 'throwingaxe', 'balrog', 'strangling', 'antidote',
+    'thawing', 'stamina', 'rejuvenation', 'fullrejuvenation'
+];
+
+const isExcludedItem = (itemName: string): boolean => {
+    const name = itemName.toLowerCase();
+    return EXCLUDED_ITEMS.some(excluded => name.includes(excluded));
+};
+
+const ITEMS_PER_PAGE = 20;
+
 export default function Home() {
-    const [logs, setLogs] = useState<LootEntry[]>([]);
+    const [allLogs, setAllLogs] = useState<LootEntry[]>([]);
+    const [displayedLogs, setDisplayedLogs] = useState<LootEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [category, setCategory] = useState('all');
     const [selectedItem, setSelectedItem] = useState<LootEntry | null>(null);
     const [itemDetails, setItemDetails] = useState<D2Item | null>(null);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const loaderRef = useRef<HTMLDivElement>(null);
 
     const fetchLogs = useCallback(async () => {
         try {
-            const params = new URLSearchParams({ limit: '100' });
+            const params = new URLSearchParams({ limit: '200' });
             if (category !== 'all') params.set('category', category);
 
             const res = await fetch(`/api/loot?${params}`);
             const data = await res.json();
 
             if (data.logs) {
-                setLogs(data.logs);
+                // Filter out excluded items
+                const filtered = data.logs.filter((log: LootEntry) => !isExcludedItem(log.itemName));
+                setAllLogs(filtered);
+                setDisplayedLogs(filtered.slice(0, ITEMS_PER_PAGE));
+                setPage(1);
+                setHasMore(filtered.length > ITEMS_PER_PAGE);
                 setLastUpdate(new Date());
             }
         } catch (error) {
@@ -66,12 +89,46 @@ export default function Home() {
         }
     }, [category]);
 
-    // Initial fetch and auto-refresh every 5 seconds
+    // Load more items
+    const loadMore = useCallback(() => {
+        const nextPage = page + 1;
+        const startIdx = (nextPage - 1) * ITEMS_PER_PAGE;
+        const endIdx = nextPage * ITEMS_PER_PAGE;
+        const newItems = allLogs.slice(startIdx, endIdx);
+
+        if (newItems.length > 0) {
+            setDisplayedLogs(prev => [...prev, ...newItems]);
+            setPage(nextPage);
+            setHasMore(endIdx < allLogs.length);
+        } else {
+            setHasMore(false);
+        }
+    }, [page, allLogs]);
+
+    // Initial fetch and auto-refresh every 10 seconds
     useEffect(() => {
         fetchLogs();
-        const interval = setInterval(fetchLogs, 5000);
+        const interval = setInterval(fetchLogs, 10000);
         return () => clearInterval(interval);
     }, [fetchLogs]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !loading) {
+                    loadMore();
+                }
+            },
+            { threshold: 1.0 }
+        );
+
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loading, loadMore]);
 
     // Fetch item details from D2IO when an item is selected
     const fetchItemDetails = async (itemId: string) => {
@@ -107,12 +164,12 @@ export default function Home() {
         return date.toLocaleDateString();
     };
 
-    // Stats
+    // Stats (from all logs, not just displayed)
     const stats = {
-        total: logs.length,
-        uniques: logs.filter(l => l.quality === 'unique').length,
-        sets: logs.filter(l => l.quality === 'set').length,
-        runes: logs.filter(l => l.quality === 'rune').length,
+        total: allLogs.length,
+        uniques: allLogs.filter(l => l.quality === 'unique').length,
+        sets: allLogs.filter(l => l.quality === 'set').length,
+        runes: allLogs.filter(l => l.quality === 'rune').length,
     };
 
     return (
@@ -156,67 +213,56 @@ export default function Home() {
                     ))}
                 </div>
 
-                {/* Loot Grid */}
+                {/* Loot List */}
                 {loading ? (
                     <div className="loading">Loading loot data...</div>
-                ) : logs.length === 0 ? (
+                ) : displayedLogs.length === 0 ? (
                     <div className="empty-state">
                         <h2>No loot yet!</h2>
                         <p>Configure your Koolo webhook to start seeing drops here.</p>
                     </div>
                 ) : (
-                    <div className="loot-grid">
-                        {logs.map((entry) => (
+                    <div className="loot-list">
+                        {displayedLogs.map((entry) => (
                             <div
                                 key={entry.id}
-                                className={`loot-card ${entry.quality}`}
+                                className={`loot-row ${entry.quality}`}
                                 onClick={() => handleItemClick(entry)}
                             >
-                                <div className="loot-header">
-                                    <span className={`item-name ${entry.quality}`}>{entry.itemName}</span>
-                                    <span className={`item-quality ${entry.quality}`}>
-                                        {QUALITY_LABELS[entry.quality] || entry.quality}
-                                    </span>
-                                </div>
-                                <div className="loot-meta">
-                                    <div className="meta-item">
-                                        <span className="meta-label">Character</span>
-                                        <span className="meta-value">{entry.character}</span>
+                                <div className={`quality-indicator ${entry.quality}`}></div>
+                                <div className="loot-row-content">
+                                    <div className="loot-row-main">
+                                        <span className={`item-name ${entry.quality}`}>{entry.itemName}</span>
+                                        <span className={`item-quality-badge ${entry.quality}`}>
+                                            {QUALITY_LABELS[entry.quality] || entry.quality}
+                                        </span>
                                     </div>
-                                    <div className="meta-item">
-                                        <span className="meta-label">Location</span>
-                                        <span className="meta-value">{entry.location}</span>
-                                    </div>
-                                    <div className="meta-item">
-                                        <span className="meta-label">Dropped By</span>
-                                        <span className="meta-value">{entry.droppedBy || '-'}</span>
-                                    </div>
-                                    <div className="meta-item">
-                                        <span className="meta-label">Time</span>
-                                        <span className="meta-value">{formatTime(entry.timestamp)}</span>
+                                    <div className="loot-row-meta">
+                                        <span className="meta-char">{entry.character}</span>
+                                        <span className="meta-sep">•</span>
+                                        <span className="meta-loc">{entry.location}</span>
+                                        <span className="meta-sep">•</span>
+                                        <span className="meta-time">{formatTime(entry.timestamp)}</span>
                                     </div>
                                 </div>
-                                {entry.stats && entry.stats.length > 0 && (
-                                    <div className="loot-stats">
-                                        {entry.stats.slice(0, 3).map((stat, i) => (
-                                            <div key={i} className="stat-line">{stat}</div>
-                                        ))}
-                                        {entry.stats.length > 3 && (
-                                            <div className="stat-line" style={{ opacity: 0.6 }}>
-                                                +{entry.stats.length - 3} more...
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         ))}
+
+                        {/* Infinite scroll loader */}
+                        <div ref={loaderRef} className="load-more">
+                            {hasMore ? (
+                                <span>Loading more...</span>
+                            ) : (
+                                <span>No more items</span>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
 
             {/* Refresh Indicator */}
             <div className="refresh-indicator">
-                Last updated: {lastUpdate.toLocaleTimeString()}
+                Last updated: {lastUpdate.toLocaleTimeString()} • Showing {displayedLogs.length} of {allLogs.length}
             </div>
 
             {/* Item Detail Modal */}
