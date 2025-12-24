@@ -1,16 +1,25 @@
-import { kv } from '@vercel/kv';
+import { neon } from '@neondatabase/serverless';
 import { NextRequest, NextResponse } from 'next/server';
 
 export interface LootEntry {
     id: string;
     timestamp: string;
     character: string;
-    itemName: string;
-    itemId: string;
+    item_name: string;
+    item_id: string;
     quality: string;
     location: string;
-    droppedBy: string;
+    dropped_by: string;
     stats: string[];
+}
+
+// Initialize Neon client
+function getDb() {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+        throw new Error('DATABASE_URL environment variable is not set');
+    }
+    return neon(connectionString);
 }
 
 // POST: Receive loot from Koolo webhook
@@ -25,30 +34,25 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
+        const sql = getDb();
 
-        // Generate unique ID
-        const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Insert into database
+        await sql`
+      INSERT INTO loot_logs (
+        timestamp, character, item_name, item_id, quality, location, dropped_by, stats
+      ) VALUES (
+        ${body.timestamp || new Date().toISOString()},
+        ${body.character || 'Unknown'},
+        ${body.itemName || 'Unknown Item'},
+        ${body.itemId || ''},
+        ${body.quality || 'normal'},
+        ${body.location || 'Unknown'},
+        ${body.droppedBy || ''},
+        ${JSON.stringify(body.stats || [])}
+      )
+    `;
 
-        const lootEntry: LootEntry = {
-            id,
-            timestamp: body.timestamp || new Date().toISOString(),
-            character: body.character || 'Unknown',
-            itemName: body.itemName || 'Unknown Item',
-            itemId: body.itemId || '',
-            quality: body.quality || 'normal',
-            location: body.location || 'Unknown',
-            droppedBy: body.droppedBy || '',
-            stats: body.stats || [],
-        };
-
-        // Store in Vercel KV with 7-day TTL
-        const key = `loot:${id}`;
-        await kv.set(key, JSON.stringify(lootEntry), { ex: 60 * 60 * 24 * 7 });
-
-        // Add to sorted set for efficient retrieval
-        await kv.zadd('loot:timeline', { score: Date.now(), member: key });
-
-        return NextResponse.json({ success: true, id }, { status: 201 });
+        return NextResponse.json({ success: true }, { status: 201 });
     } catch (error) {
         console.error('Error processing loot webhook:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -58,32 +62,57 @@ export async function POST(request: NextRequest) {
 // GET: Retrieve recent loot entries
 export async function GET(request: NextRequest) {
     try {
+        const sql = getDb();
         const { searchParams } = new URL(request.url);
         const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
         const category = searchParams.get('category');
         const character = searchParams.get('character');
 
-        // Get recent loot keys from timeline
-        const keys = await kv.zrange('loot:timeline', -limit, -1, { rev: true });
+        let query;
 
-        if (!keys || keys.length === 0) {
-            return NextResponse.json({ logs: [] });
+        if (category && character) {
+            query = sql`
+        SELECT * FROM loot_logs 
+        WHERE quality = ${category} AND character = ${character}
+        ORDER BY timestamp DESC 
+        LIMIT ${limit}
+      `;
+        } else if (category) {
+            query = sql`
+        SELECT * FROM loot_logs 
+        WHERE quality = ${category}
+        ORDER BY timestamp DESC 
+        LIMIT ${limit}
+      `;
+        } else if (character) {
+            query = sql`
+        SELECT * FROM loot_logs 
+        WHERE character = ${character}
+        ORDER BY timestamp DESC 
+        LIMIT ${limit}
+      `;
+        } else {
+            query = sql`
+        SELECT * FROM loot_logs 
+        ORDER BY timestamp DESC 
+        LIMIT ${limit}
+      `;
         }
 
-        // Fetch all loot entries
-        const logs: LootEntry[] = [];
-        for (const key of keys) {
-            const data = await kv.get(key as string);
-            if (data) {
-                const entry = typeof data === 'string' ? JSON.parse(data) : data;
+        const rows = await query;
 
-                // Apply filters
-                if (category && entry.quality !== category) continue;
-                if (character && entry.character !== character) continue;
-
-                logs.push(entry);
-            }
-        }
+        // Transform to match frontend expected format
+        const logs = rows.map((row: any) => ({
+            id: row.id.toString(),
+            timestamp: row.timestamp,
+            character: row.character,
+            itemName: row.item_name,
+            itemId: row.item_id,
+            quality: row.quality,
+            location: row.location,
+            droppedBy: row.dropped_by,
+            stats: typeof row.stats === 'string' ? JSON.parse(row.stats) : row.stats,
+        }));
 
         return NextResponse.json({ logs });
     } catch (error) {

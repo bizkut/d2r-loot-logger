@@ -12,7 +12,17 @@ Real-time loot tracking webapp for Diablo II Resurrected, designed to work with 
 
 ## Setup
 
-### 1. Deploy to Vercel
+### 1. Create Neon Database
+
+1. Go to [neon.tech](https://neon.tech) and create a free account
+2. Create a new project
+3. Copy your **connection string** (looks like `postgresql://user:pass@host/db`)
+4. Run the schema in **SQL Editor**:
+   ```sql
+   -- Paste contents of schema.sql here
+   ```
+
+### 2. Deploy to Vercel
 
 ```bash
 cd loot-logger-webapp
@@ -20,27 +30,25 @@ npm install
 vercel
 ```
 
-### 2. Configure Vercel KV
+### 3. Add Environment Variables in Vercel
 
-1. Go to your Vercel dashboard
-2. Click on "Storage" → "Create Database" → "KV"
-3. Link the database to your project
-4. The environment variables will be automatically added
+Go to Project Settings → Environment Variables:
 
-### 3. Configure Koolo Webhook
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Your Neon connection string |
+| `WEBHOOK_SECRET` | `koolo-webhook-xK9mP2nL7qR4sT1w` |
 
-Add to your `Settings.json`:
+### 4. Configure Koolo Webhook
+
+Add to your `koolo.yaml`:
 
 ```yaml
 webhook:
   enabled: true
   url: "https://your-app.vercel.app/api/loot"
-  secret: "your-optional-secret-key"
+  secret: "koolo-webhook-xK9mP2nL7qR4sT1w"
 ```
-
-### 4. Set Webhook Secret (Optional)
-
-Add `WEBHOOK_SECRET` to your Vercel environment variables if you want to secure your webhook.
 
 ## Development
 
@@ -81,6 +89,6 @@ Retrieve loot logs.
 ## Tech Stack
 
 - Next.js 14
-- Vercel KV (Redis)
+- Neon PostgreSQL (serverless)
 - TypeScript
 - D2IO API for item data
