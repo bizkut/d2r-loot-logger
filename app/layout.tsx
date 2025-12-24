@@ -4,6 +4,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
     title: 'D2R Loot Logger',
     description: 'Real-time loot tracking for Diablo II Resurrected',
+    icons: {
+        icon: '/favicon.svg',
+    },
 };
 
 export default function RootLayout({
