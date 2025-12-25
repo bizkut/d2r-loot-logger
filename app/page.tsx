@@ -228,10 +228,13 @@ export default function Home() {
     }, [logsByCharacter]);
 
     // Infinite scroll component for each character column
-    const InfiniteScrollSentinel = ({ char }: { char: string }) => {
+    const InfiniteScrollSentinel = ({ char, displayLimit, totalItems }: { char: string; displayLimit: number; totalItems: number }) => {
         const sentinelRef = useRef<HTMLDivElement>(null);
+        const hasMore = displayLimit < totalItems;
 
         useEffect(() => {
+            if (!hasMore) return;
+
             const sentinel = sentinelRef.current;
             if (!sentinel) return;
 
@@ -241,16 +244,12 @@ export default function Home() {
                         loadMoreForChar(char);
                     }
                 },
-                { threshold: 0.1, rootMargin: '100px' }
+                { threshold: 0.1, rootMargin: '200px' }
             );
 
             observer.observe(sentinel);
             return () => observer.disconnect();
-        }, [char]);
-
-        const charLogs = logsByCharacter[char];
-        const displayLimit = getDisplayLimit(char);
-        const hasMore = charLogs && displayLimit < charLogs.length;
+        }, [char, hasMore, displayLimit]); // Re-run when displayLimit changes
 
         if (!hasMore) return null;
 
@@ -259,7 +258,7 @@ export default function Home() {
                 <div className="loading-dots">
                     <span></span><span></span><span></span>
                 </div>
-                <span className="remaining-count">+{charLogs.length - displayLimit} more</span>
+                <span className="remaining-count">+{totalItems - displayLimit} more</span>
             </div>
         );
     };
@@ -355,7 +354,7 @@ export default function Home() {
                                                 </div>
                                             </div>
                                         ))}
-                                        <InfiniteScrollSentinel char={char} />
+                                        <InfiniteScrollSentinel char={char} displayLimit={getDisplayLimit(char)} totalItems={logsByCharacter[char].length} />
                                     </div>
                                 </div>
                             );
