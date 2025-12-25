@@ -32,6 +32,65 @@ body {
   padding: 20px;
 }
 
+.container-wide {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Character Column Layout */
+.character-columns {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.character-column {
+  flex: 1;
+  min-width: 350px;
+  max-width: 500px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.character-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.15) 0%, rgba(201, 162, 39, 0.05) 100%);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.character-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  text-shadow: 0 0 10px rgba(201, 162, 39, 0.3);
+}
+
+.character-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.character-column .loot-list {
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.character-column .loot-row {
+  margin-bottom: 6px;
+}
+
+
 .header {
   text-align: center;
   padding: 30px 20px;

@@ -92,13 +92,19 @@ export async function POST(request: NextRequest) {
             stats: body.stats || [],
         };
 
-        // Push to Pusher for real-time updates
-        try {
-            const pusher = getPusher();
-            await pusher.trigger('loot-channel', 'new-loot', lootData);
-        } catch (pusherError) {
-            console.error('Pusher error (non-fatal):', pusherError);
-            // Don't fail the request if Pusher fails
+        // Push to Pusher for real-time updates - only for valuable items
+        // This helps minimize Pusher message costs
+        const valuableQualities = ['unique', 'set', 'rare', 'magic', 'rune'];
+        const itemQuality = (body.quality || 'normal').toLowerCase();
+
+        if (valuableQualities.includes(itemQuality)) {
+            try {
+                const pusher = getPusher();
+                await pusher.trigger('loot-channel', 'new-loot', lootData);
+            } catch (pusherError) {
+                console.error('Pusher error (non-fatal):', pusherError);
+                // Don't fail the request if Pusher fails
+            }
         }
 
         return NextResponse.json({ success: true }, { status: 201 });
