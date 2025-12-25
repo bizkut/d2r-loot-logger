@@ -6,6 +6,9 @@ export interface LootEntry {
     id: string;
     timestamp: string;
     character: string;
+    characterClass: string;
+    characterLevel: number;
+    difficulty: string;
     item_name: string;
     item_id: string;
     quality: string;
@@ -65,10 +68,13 @@ export async function POST(request: NextRequest) {
         // Insert into database
         const result = await sql`
       INSERT INTO loot_logs (
-        timestamp, character, item_name, item_id, quality, location, dropped_by, stats
+        timestamp, character, character_class, character_level, difficulty, item_name, item_id, quality, location, dropped_by, stats
       ) VALUES (
         ${body.timestamp || new Date().toISOString()},
         ${body.character || 'Unknown'},
+        ${body.characterClass || ''},
+        ${body.characterLevel || 0},
+        ${body.difficulty || ''},
         ${body.itemName || 'Unknown Item'},
         ${body.itemId || ''},
         ${body.quality || 'normal'},
@@ -84,6 +90,9 @@ export async function POST(request: NextRequest) {
             id: result[0]?.id?.toString() || Date.now().toString(),
             timestamp: body.timestamp || new Date().toISOString(),
             character: body.character || 'Unknown',
+            characterClass: body.characterClass || '',
+            characterLevel: body.characterLevel || 0,
+            difficulty: body.difficulty || '',
             itemName: body.itemName || 'Unknown Item',
             itemId: body.itemId || '',
             quality: body.quality || 'normal',
@@ -161,6 +170,9 @@ export async function GET(request: NextRequest) {
             id: row.id.toString(),
             timestamp: row.timestamp,
             character: row.character,
+            characterClass: row.character_class || '',
+            characterLevel: row.character_level || 0,
+            difficulty: row.difficulty || '',
             itemName: row.item_name,
             itemId: row.item_id,
             quality: row.quality,

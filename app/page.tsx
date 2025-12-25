@@ -7,6 +7,9 @@ interface LootEntry {
     id: string;
     timestamp: string;
     character: string;
+    characterClass: string;
+    characterLevel: number;
+    difficulty: string;
     itemName: string;
     itemId: string;
     quality: string;
@@ -74,6 +77,20 @@ export default function Home() {
         }
         return grouped;
     }, [allLogs]);
+
+    // Get character info (class, level, difficulty) from latest entry
+    const getCharacterInfo = (char: string) => {
+        const logs = logsByCharacter[char];
+        if (logs && logs.length > 0) {
+            const latest = logs[0]; // Logs are sorted by timestamp desc
+            return {
+                className: latest.characterClass || '',
+                level: latest.characterLevel || 0,
+                difficulty: latest.difficulty || ''
+            };
+        }
+        return { className: '', level: 0, difficulty: '' };
+    };
 
     // Get unique characters
     const characters = useMemo(() => Object.keys(logsByCharacter).sort(), [logsByCharacter]);
@@ -242,43 +259,55 @@ export default function Home() {
                     </div>
                 ) : (
                     <div className="character-columns">
-                        {characters.map((char) => (
-                            <div key={char} className="character-column">
-                                <div className="character-header">
-                                    <span className="character-name">{char}</span>
-                                    <span className="character-count">{logsByCharacter[char].length} items</span>
-                                </div>
-                                <div className="loot-list">
-                                    {logsByCharacter[char].slice(0, ITEMS_PER_PAGE).map((entry) => (
-                                        <div
-                                            key={entry.id}
-                                            className={`loot-row ${entry.quality}`}
-                                            onClick={() => handleItemClick(entry)}
-                                        >
-                                            <div className={`quality-indicator ${entry.quality}`}></div>
-                                            <div className="loot-row-content">
-                                                <div className="loot-row-main">
-                                                    <span className={`item-name ${entry.quality}`}>{entry.itemName}</span>
-                                                    <span className={`item-quality-badge ${entry.quality}`}>
-                                                        {QUALITY_LABELS[entry.quality] || entry.quality}
-                                                    </span>
-                                                </div>
-                                                <div className="loot-row-meta">
-                                                    <span className="meta-loc">{entry.location}</span>
-                                                    <span className="meta-sep">•</span>
-                                                    <span className="meta-time">{formatTime(entry.timestamp)}</span>
+                        {characters.map((char) => {
+                            const charInfo = getCharacterInfo(char);
+                            return (
+                                <div key={char} className="character-column">
+                                    <div className="character-header">
+                                        <div className="character-header-top">
+                                            <span className="character-name">{char}</span>
+                                            <span className="character-count">{logsByCharacter[char].length} items</span>
+                                        </div>
+                                        {(charInfo.className || charInfo.level > 0 || charInfo.difficulty) && (
+                                            <div className="character-header-meta">
+                                                {charInfo.className && <span className="char-class">{charInfo.className}</span>}
+                                                {charInfo.level > 0 && <span className="char-level">Lv.{charInfo.level}</span>}
+                                                {charInfo.difficulty && <span className={`char-difficulty ${charInfo.difficulty.toLowerCase()}`}>{charInfo.difficulty}</span>}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="loot-list">
+                                        {logsByCharacter[char].slice(0, ITEMS_PER_PAGE).map((entry) => (
+                                            <div
+                                                key={entry.id}
+                                                className={`loot-row ${entry.quality}`}
+                                                onClick={() => handleItemClick(entry)}
+                                            >
+                                                <div className={`quality-indicator ${entry.quality}`}></div>
+                                                <div className="loot-row-content">
+                                                    <div className="loot-row-main">
+                                                        <span className={`item-name ${entry.quality}`}>{entry.itemName}</span>
+                                                        <span className={`item-quality-badge ${entry.quality}`}>
+                                                            {QUALITY_LABELS[entry.quality] || entry.quality}
+                                                        </span>
+                                                    </div>
+                                                    <div className="loot-row-meta">
+                                                        <span className="meta-loc">{entry.location}</span>
+                                                        <span className="meta-sep">•</span>
+                                                        <span className="meta-time">{formatTime(entry.timestamp)}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                    {logsByCharacter[char].length > ITEMS_PER_PAGE && (
-                                        <div className="load-more">
-                                            <span>+{logsByCharacter[char].length - ITEMS_PER_PAGE} more items</span>
-                                        </div>
-                                    )}
+                                        ))}
+                                        {logsByCharacter[char].length > ITEMS_PER_PAGE && (
+                                            <div className="load-more">
+                                                <span>+{logsByCharacter[char].length - ITEMS_PER_PAGE} more items</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
