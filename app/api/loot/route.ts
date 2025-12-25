@@ -165,6 +165,18 @@ export async function GET(request: NextRequest) {
 
         const rows = await query;
 
+        // Get total counts from the database (not affected by limit or filters)
+        const countResult = await sql`
+            SELECT 
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE quality = 'unique') as uniques,
+                COUNT(*) FILTER (WHERE quality = 'set') as sets,
+                COUNT(*) FILTER (WHERE quality = 'rune') as runes
+            FROM loot_logs
+        `;
+
+        const counts = countResult[0] || { total: 0, uniques: 0, sets: 0, runes: 0 };
+
         // Transform to match frontend expected format
         const logs = rows.map((row: any) => ({
             id: row.id.toString(),
@@ -181,7 +193,15 @@ export async function GET(request: NextRequest) {
             stats: typeof row.stats === 'string' ? JSON.parse(row.stats) : row.stats,
         }));
 
-        return NextResponse.json({ logs });
+        return NextResponse.json({
+            logs,
+            totals: {
+                total: Number(counts.total),
+                uniques: Number(counts.uniques),
+                sets: Number(counts.sets),
+                runes: Number(counts.runes),
+            }
+        });
     } catch (error) {
         console.error('Error fetching loot logs:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

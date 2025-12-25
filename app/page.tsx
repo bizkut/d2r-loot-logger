@@ -65,6 +65,8 @@ export default function Home() {
     const [itemDetails, setItemDetails] = useState<D2Item | null>(null);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
     const loaderRef = useRef<HTMLDivElement>(null);
+    const [dbTotals, setDbTotals] = useState({ total: 0, uniques: 0, sets: 0, runes: 0 });
+    const [expandedChars, setExpandedChars] = useState<Record<string, number>>({});
 
     // Group logs by character
     const logsByCharacter = useMemo(() => {
@@ -108,6 +110,9 @@ export default function Home() {
                 const filtered = data.logs.filter((log: LootEntry) => !isExcludedItem(log.itemName));
                 setAllLogs(filtered);
                 setLastUpdate(new Date());
+            }
+            if (data.totals) {
+                setDbTotals(data.totals);
             }
         } catch (error) {
             console.error('Failed to fetch logs:', error);
@@ -200,12 +205,18 @@ export default function Home() {
         return date.toLocaleDateString();
     };
 
-    // Stats (from all logs, not just displayed)
-    const stats = {
-        total: allLogs.length,
-        uniques: allLogs.filter((l: LootEntry) => l.quality === 'unique').length,
-        sets: allLogs.filter((l: LootEntry) => l.quality === 'set').length,
-        runes: allLogs.filter((l: LootEntry) => l.quality === 'rune').length,
+    // Stats from database totals
+    const stats = dbTotals;
+
+    // Get display limit for a character
+    const getDisplayLimit = (char: string) => expandedChars[char] || ITEMS_PER_PAGE;
+
+    // Load more items for a character
+    const loadMoreForChar = (char: string) => {
+        setExpandedChars(prev => ({
+            ...prev,
+            [char]: (prev[char] || ITEMS_PER_PAGE) + ITEMS_PER_PAGE
+        }));
     };
 
     return (
@@ -277,7 +288,7 @@ export default function Home() {
                                         )}
                                     </div>
                                     <div className="loot-list">
-                                        {logsByCharacter[char].slice(0, ITEMS_PER_PAGE).map((entry) => (
+                                        {logsByCharacter[char].slice(0, getDisplayLimit(char)).map((entry) => (
                                             <div
                                                 key={entry.id}
                                                 className={`loot-row ${entry.quality}`}
@@ -299,10 +310,13 @@ export default function Home() {
                                                 </div>
                                             </div>
                                         ))}
-                                        {logsByCharacter[char].length > ITEMS_PER_PAGE && (
-                                            <div className="load-more">
-                                                <span>+{logsByCharacter[char].length - ITEMS_PER_PAGE} more items</span>
-                                            </div>
+                                        {logsByCharacter[char].length > getDisplayLimit(char) && (
+                                            <button
+                                                className="load-more-btn"
+                                                onClick={() => loadMoreForChar(char)}
+                                            >
+                                                Load More (+{logsByCharacter[char].length - getDisplayLimit(char)} remaining)
+                                            </button>
                                         )}
                                     </div>
                                 </div>

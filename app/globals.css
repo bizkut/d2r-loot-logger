@@ -355,6 +355,26 @@ body {
   font-size: 0.85rem;
 }
 
+.load-more-btn {
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.15) 0%, rgba(201, 162, 39, 0.05) 100%);
+  border: 1px solid var(--accent-gold);
+  border-radius: 8px;
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:hover {
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.25) 0%, rgba(201, 162, 39, 0.15) 100%);
+  box-shadow: 0 0 12px rgba(201, 162, 39, 0.3);
+  transform: translateY(-1px);
+}
+
 /* Stats bar */
 .stats-bar {
   display: flex;
