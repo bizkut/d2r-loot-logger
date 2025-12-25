@@ -212,11 +212,56 @@ export default function Home() {
     const getDisplayLimit = (char: string) => expandedChars[char] || ITEMS_PER_PAGE;
 
     // Load more items for a character
-    const loadMoreForChar = (char: string) => {
-        setExpandedChars(prev => ({
-            ...prev,
-            [char]: (prev[char] || ITEMS_PER_PAGE) + ITEMS_PER_PAGE
-        }));
+    const loadMoreForChar = useCallback((char: string) => {
+        setExpandedChars(prev => {
+            const current = prev[char] || ITEMS_PER_PAGE;
+            const charLogs = logsByCharacter[char];
+            // Only load more if there are more items to show
+            if (charLogs && current < charLogs.length) {
+                return {
+                    ...prev,
+                    [char]: current + ITEMS_PER_PAGE
+                };
+            }
+            return prev;
+        });
+    }, [logsByCharacter]);
+
+    // Infinite scroll component for each character column
+    const InfiniteScrollSentinel = ({ char }: { char: string }) => {
+        const sentinelRef = useRef<HTMLDivElement>(null);
+
+        useEffect(() => {
+            const sentinel = sentinelRef.current;
+            if (!sentinel) return;
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting) {
+                        loadMoreForChar(char);
+                    }
+                },
+                { threshold: 0.1, rootMargin: '100px' }
+            );
+
+            observer.observe(sentinel);
+            return () => observer.disconnect();
+        }, [char]);
+
+        const charLogs = logsByCharacter[char];
+        const displayLimit = getDisplayLimit(char);
+        const hasMore = charLogs && displayLimit < charLogs.length;
+
+        if (!hasMore) return null;
+
+        return (
+            <div ref={sentinelRef} className="scroll-sentinel">
+                <div className="loading-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <span className="remaining-count">+{charLogs.length - displayLimit} more</span>
+            </div>
+        );
     };
 
     return (
@@ -310,14 +355,7 @@ export default function Home() {
                                                 </div>
                                             </div>
                                         ))}
-                                        {logsByCharacter[char].length > getDisplayLimit(char) && (
-                                            <button
-                                                className="load-more-btn"
-                                                onClick={() => loadMoreForChar(char)}
-                                            >
-                                                Load More (+{logsByCharacter[char].length - getDisplayLimit(char)} remaining)
-                                            </button>
-                                        )}
+                                        <InfiniteScrollSentinel char={char} />
                                     </div>
                                 </div>
                             );
